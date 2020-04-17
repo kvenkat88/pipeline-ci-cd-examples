@@ -1,0 +1,79 @@
+properties([
+            parameters(
+                    [   string(defaultValue: "disease", description: 'Include the Repository Name', name: 'REPOSITORY'),
+                        choice(choices: 'dev\ntest\nstage\nprod\ndummy1', description: 'Stage name for Deployment', name: 'STAGE'),
+                        choice(choices: '10.82.1.129\n10.8.10.60', description: 'Server IP for Deployment', name: 'SERVER_IP'),
+                        string(defaultValue: 'dev-04132020', description: 'TAG name of the Docker Image fetched from project specific ECR repository', name: 'TAG'),
+                        string(defaultValue: '5000', description: 'Port to run the app once deployed', name: 'PORT'),
+                        string(defaultValue: 'some_account_id', description: 'Provide the AWS Account ID for usage', name: 'AWS_ACCOUNT_ID'),
+                        string(defaultValue: 'us-east-1', description: 'Provide the AWS_REGION for usage', name: 'AWS_REGION'),
+                        string(defaultValue: 'ec2-user', description: 'Provide the user_name for login to ec2 instance', name: 'SERVER_USERNAME')
+                    ])
+])
+
+def REPOSITORY = params.REPOSITORY
+def SERVER_IP = params.SERVER_IP
+def TAG = params.TAG
+def STAGE = params.STAGE
+def NEW_TAG = params.STAGE + '-' + params.TAG
+def CONTAINER_NAME = params.REPOSITORY+ '-'+params.STAGE+'-'+params.TAG
+def PORT = params.PORT
+def AWS_REGION = params.AWS_REGION
+def AWS_ECR_LOGIN = ""
+def ECR_URI = params.AWS_ACCOUNT_ID+'.dkr.ecr.'+AWS_REGION+'.amazonaws.com'
+
+node {
+    stage('aws_ecr_login') {
+        env.AWS_ECR_LOGIN=sh(returnStdout: true, script: ''' 
+                                                            aws ecr get-login --no-include-email --region "${AWS_REGION}" 
+                                                        ''')
+        sh "echo ${AWS_ECR_LOGIN}"
+        sh "sleep 10"
+    }
+    
+    stage('Fetch_Image_Digest_Manifest_Update_Image_To_ECR') {
+            echo "Running Fetch_Image_Digest_Manifest_Update_Image_To_ECR stage"
+            sh ''' #!/bin/bash
+                
+                IMAGE_DIGEST=$(aws ecr describe-images --repository-name ${REPOSITORY} --region "${AWS_REGION}" --filter 'tagStatus=TAGGED' --image-ids imageTag=${TAG} --query 'sort_by(imageDetails,& imagePushedAt)[0].imageDigest')
+
+                MANIFEST=$(aws ecr batch-get-image --repository-name ${REPOSITORY} --region "${AWS_REGION}" --image-ids imageDigest=$IMAGE_DIGEST --query 'images[].imageManifest' --output text)
+                
+                echo "Running for NEW TAG FRAMED -- "${NEW_TAG}""
+                
+                AWS_PUT_IMAGE_OUTPUT=$(aws ecr put-image --repository-name ${REPOSITORY} --region "${AWS_REGION}" --image-tag "${STAGE}-${TAG}" --image-manifest "${MANIFEST}")
+                #echo "${AWS_PUT_IMAGE_OUTPUT}"
+                
+            '''
+    }
+    stage('Stop_Running_Instance') {
+
+        env.RUNNING_DOCKER = sh(returnStdout: true, script: ''' ssh -o StrictHostKeyChecking=no "${SERVER_USERNAME}"@"${SERVER_IP}" "docker ps -aqf name=${REPOSITORY}" ''').trim()
+        sh "echo $RUNNING_DOCKER"
+        
+        sh '''
+            if [ -z "$RUNING_DOCKER" ]
+            then
+                echo "No running instances/container"
+            else
+                echo "Container ID to stop is $RUNING_DOCKER"
+            fi
+            '''
+    }
+    
+    stage('ssh_login_to_machine'){
+        echo "${ECR_URI}"
+        docker.withRegistry("https://${ECR_URI}", "ecr:${AWS_REGION}:aws_secret"){
+            sh ''' aws ecr list-images --repository-name ${REPOSITORY} --region "${AWS_REGION}" '''
+            
+            sh ''' 
+                ssh -o StrictHostKeyChecking=no -o LogLevel=error -q "${SERVER_USERNAME}"@"${SERVER_IP}" "export HISTCONTROL="ignorespace" && docker ps &&
+                     docker rm -f "infectious-disease-${STAGE}-${TAG}" || true && "${AWS_ECR_LOGIN}" && sleep 10 &&
+                     docker pull "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY}:${STAGE}-${TAG}" &&
+                     docker run --rm -d -p ${PORT}:${PORT} --name "infectious-disease-${STAGE}-${TAG}" "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY}:${STAGE}-${TAG}""
+                     
+                     
+                '''
+        }
+    }
+}
