@@ -1,0 +1,127 @@
+def projects = [
+ "infectious-disease": ["NAME": "INF_MODULE_API", "PORT": "8080", "DESC": "Infectious Disease Module APIs"],
+ "core-services": ["NAME": "CORE_API", "PORT": "5000", "DESC": "HPS Core API Services"],
+ "360/hhps": ["NAME": "INF360", "PORT": "10010", "DESC": "Inf360 App"],
+ "population-health-dashboard": ["NAME": "INFORMATICS", "PORT": "30001", "DESC": "Informatics App"]
+]
+
+def now = new Date()
+//def defaultTag = "dev-" + now.format("MMddyyyy")
+def defaultTag = "dev-04162020"
+
+def build_parameters = []
+
+for (key in projects.keySet()) {
+ build_parameters << booleanParam(defaultValue: true,
+    name: projects[key]["NAME"],
+    description: projects[key]["DESC"])
+ 
+ build_parameters << string(defaultValue: projects[key]["PORT"], name: projects[key]["NAME"] + "_PORT")
+ 
+ build_parameters << string(defaultValue: defaultTag, name: projects[key]["NAME"] + "_TAG")
+}
+
+build_parameters.addAll([choice(choices: 'hs\nnsprk', description: 'Brand name for Deployment', name: 'BRAND'),
+ choice(choices: 'dev\ntest\nstage\nprod\ndummy1', description: 'Stage name for Deployment', name: 'STAGE'),
+ choice(choices: '10.8.1.129\n10.8.10.60\', description: 'Server IP for Deployment', name: 'SERVER_IP'),
+ string(defaultValue: '233491821381', description: 'Provide the AWS Account ID for usage', name: 'AWS_ACCOUNT_ID'),
+ string(defaultValue: 'us-east-1', description: 'Provide the AWS_REGION for usage', name: 'AWS_REGION'),
+ string(defaultValue: 'ec2-user', description: 'Provide the user_name for login to ec2 instance', name: 'SERVER_USERNAME', label: "Hello")
+])
+
+properties([parameters(build_parameters)])
+
+def SERVER_IP = params.SERVER_IP
+def STAGE = params.STAGE
+def AWS_REGION = params.AWS_REGION
+def AWS_ECR_LOGIN = ""
+def ECR_URI = params.AWS_ACCOUNT_ID + '.dkr.ecr.' + AWS_REGION + '.amazonaws.com'
+def REPOSITORY = ""
+def CONTAINER_NAME = ""
+def RUNNING_DOCKER = ""
+def PORT = ""
+def TAG = ""
+def NEW_TAG = ""
+
+
+node {
+ stage('aws_ecr_login') {
+  AWS_ECR_LOGIN=sh(returnStdout: true, script: ''' 
+                        aws ecr get-login --no-include-email --region "${AWS_REGION}" 
+                    ''').trim()
+   sh "echo ${AWS_ECR_LOGIN}"
+   sh "sleep 10"
+  }
+
+
+  for (key in projects.keySet()) {
+   def TO_DEPLOY = params[projects[key]["NAME"]]
+   if (TO_DEPLOY) {
+    REPOSITORY = key;
+    CONTAINER_NAME = key.replaceAll("/", "-").trim()
+    PORT = params[projects[key]["NAME"] + "_PORT"]
+    TAG = params[projects[key]["NAME"] + "_TAG"]
+    NEW_TAG = params.STAGE + '-' + TAG
+
+    stage('Fetch and update ECR : ' + projects[key]["NAME"]) {
+     echo "Fetching images from ECR - ${REPOSITORY}"
+     env.IMAGE_DIGEST = sh(returnStdout: true,
+      script: "aws ecr describe-images --repository-name '${REPOSITORY}' --region '${AWS_REGION}' --filter 'tagStatus=TAGGED' --image-ids imageTag=${TAG} --query 'sort_by(imageDetails,& imagePushedAt)[0].imageDigest'").trim()
+     env.MANIFEST = sh(returnStdout: true,
+      script: "aws ecr batch-get-image --repository-name '${REPOSITORY}' --region '${AWS_REGION}' --image-ids imageDigest=${IMAGE_DIGEST} --query 'images[].imageManifest' --output text").trim()
+
+     try{
+        echo "Updating image '${REPOSITORY}' with new tag -- ${NEW_TAG}"
+        sh "aws ecr put-image --repository-name '${REPOSITORY}' --region '${AWS_REGION}' --image-tag '${NEW_TAG}' --image-manifest '${MANIFEST}'"
+     } catch(Exception err) {
+        echo "ERROR while updating '${REPOSITORY}' with new tag -- ${NEW_TAG} : ${err}" 
+     }
+    }
+    
+    stage('Stop_Running_Instance : ' + projects[key]["NAME"]) {
+
+        RUNNING_DOCKER = sh(returnStdout: true, script: "ssh -o StrictHostKeyChecking=no '${SERVER_USERNAME}'@'${SERVER_IP}' 'docker ps -aqf name=${CONTAINER_NAME}'").trim()
+        sh "echo $RUNNING_DOCKER"
+        
+        if(RUNNING_DOCKER && !RUNNING_DOCKER.allWhitespace) {
+            echo "Stopping" + projects[key]["NAME"] + RUNNING_DOCKER
+            sh """
+                ssh -o StrictHostKeyChecking=no ${SERVER_USERNAME}@${SERVER_IP} "docker stop ${RUNNING_DOCKER}"
+            """
+        } else {
+            echo "No running instances/container"
+        }
+    }
+    
+    stage('Deploy: ' + projects[key]["NAME"] + " in " + SERVER_IP) {
+        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+            echo "${ECR_URI}"
+            docker.withRegistry("https://${ECR_URI}", "ecr:${AWS_REGION}:aws_secret"){
+                sh "aws ecr list-images --repository-name '${REPOSITORY}' --region '${AWS_REGION}'"
+                
+                try{
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -o LogLevel=error -q ${SERVER_USERNAME}@${SERVER_IP} "export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} &&  export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} && 
+                             export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION && ${AWS_ECR_LOGIN} &&
+                             docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY}:${NEW_TAG} &&
+                             docker run --rm -d -p ${PORT}:${PORT} --name ${CONTAINER_NAME}-${NEW_TAG} --env AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} --env AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} --env AWS_DEFAULT_REGION=${AWS_REGION} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY}:${NEW_TAG}"
+                        """
+                }catch(Exception err) {
+                    echo "Stage failed, let's retry some more time"
+                    retry(2) {
+                            //input "Retry the job ?"
+                        sh """
+                            ssh -o StrictHostKeyChecking=no -o LogLevel=error -q ${SERVER_USERNAME}@${SERVER_IP} "export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} &&  export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} && 
+                                 export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} && ${AWS_ECR_LOGIN} &&
+                                 docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY}:${NEW_TAG} &&
+                                 docker run --rm -d -p ${PORT}:${PORT} --name ${CONTAINER_NAME}-${NEW_TAG} --env AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} --env AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} --env AWS_DEFAULT_REGION=${AWS_REGION} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY}:${NEW_TAG}"
+                            """
+                    }
+                }
+            
+        }
+    }
+   }
+  }
+ }
+}
