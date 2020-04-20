@@ -1,0 +1,119 @@
+https://www.linkedin.com/pulse/jenkins-multi-configuration-matrix-muhammad-zbeedat
+https://dzone.com/articles/implement-ci-for-multibranch-pipeline-in-jenkins
+
+Jenkins to AWS EXR :
+===================
+https://aws.amazon.com/blogs/security/a-new-and-standardized-way-to-manage-credentials-in-the-aws-sdks/
+https://aws.amazon.com/blogs/devops/build-a-continuous-delivery-pipeline-for-your-container-images-with-amazon-ecr-as-source/
+https://rtfm.co.ua/en/aws-create-an-elastic-container-registry-and-jenkins-deploy-job/
+https://aws.amazon.com/blogs/compute/authenticating-amazon-ecr-repositories-for-docker-cli-with-credential-helper/
+https://serverfault.com/questions/744902/integrate-amazon-elastic-container-registry-with-jenkins
+https://medium.com/@foxutech/setup-jenkins-with-amazon-elastic-container-registry-444c5a15ea53
+# Refresh token for n hours/configured hours
+==============================================
+https://forums.aws.amazon.com/thread.jspa?threadID=222215
+
+
+https://interviewbubble.com/solved-how-can-i-import-an-yaml-file-inside-another-yaml-file/
+
+https://gist.github.com/lumengxi/0ae4645124cd4066f676  # INclude Make macro and python code
+
+Make Install::
+--------------
+https://opensource.com/article/18/8/what-how-makefile
+https://stackoverflow.com/questions/9544200/how-can-i-use-install-make-on-the-amazon-linux-ami-for-ec2
+oreilly.com/library/view/managing-projects-with/0596006101/ch11.html
+https://www.youtube.com/watch?v=6Gw1rNyTJWA    ##important
+http://nuclear.mutantstargoat.com/articles/make/
+https://svn.python.org/projects/python/trunk/Doc/Makefile
+https://github.com/aws-samples/harmonize-search-analyze/blob/master/services/Makefile
+https://stackoverflow.com/questions/16233196/makefile-to-execute-a-sequence-of-steps
+
+https://stackoverflow.com/questions/1612278/pre-build-step-in-makefile
+https://stackoverflow.com/questions/2019989/how-to-assign-the-output-of-a-command-to-a-makefile-variable
+https://github.com/edx/jenkins-configuration/blob/master/Makefile
+https://github.com/edx/jenkins-configuration/blob/master/Makefile
+
+https://github.com/kitconcept/jenkins-pipeline-examples
+https://medium.com/@exustash/three-good-practices-for-better-ci-cd-makefiles-5b93452e4cc3
+
+Read json file from Makefile:
+=============
+https://stackoverflow.com/questions/36664010/read-json-and-assign-to-a-list-of-make-variables
+https://github.com/trentm/json/blob/master/Makefile
+https://github.com/commonsearch/cosr-ops/issues/7
+https://github.com/commonsearch/cosr-ops/blob/master/Makefile#L6
+
+
+# Acces .env file inside the Makefile
+=================================
+https://github.com/aws-samples/harmonize-search-analyze/blob/master/services/Makefile
+https://docs.aws.amazon.com/systems-manager/latest/userguide/automation-jenkins.html
+https://medium.com/avmconsulting-blog/declarative-jenkins-pipelines-c5309b0cf063
+https://support.cloudbees.com/hc/en-us/articles/360027893492-How-To-Authenticate-to-AWS-with-the-Pipeline-AWS-Plugin
+https://www.youtube.com/watch?v=_t-hZTX97AI --->Using environment variables (Get started with Jenkins, part 7)
+https://www.youtube.com/watch?v=dX35_jQJDM8&pbjreload=10  --> 14 - Jenkins Pipeline script parameterized builds
+https://stackoverflow.com/questions/54230824/how-to-set-the-global-environment-variable-from-jenkins-pipeline
+https://support.cloudbees.com/hc/en-us/articles/203802500-Injecting-Secrets-into-Jenkins-Build-Jobs  #Access secrets(having credentials) in runtime
+https://www.tikalk.com/posts/2017/03/07/how-to-mask-credentials-in-your-jenkins-jobs/
+
+AWS Credentials configure:
+==========================
+https://blog.gruntwork.io/authenticating-to-aws-with-the-credentials-file-d16c0fbcbf9e
+
+Temp Hack for AWS credentials mention:
+=====================================
+https://plugins.jenkins.io/aws-credentials/  -->plugin
+https://stackoverflow.com/questions/34228864/stop-and-delete-docker-container-if-its-running
+
+Get latest ECR image,
+https://stackoverflow.com/questions/43331418/aws-cli-ecr-list-images-get-newest
+
+Exception resolve:
+https://stackoverflow.com/questions/48273320/cant-pass-json-string-to-sh-step-in-jenkins-pipeline/48277889
+
+  mkdir .aws
+ 1031  sudo mkdir .aws
+ 1032  ls -la
+ 1033  sudo chown jenkins:jenkins .aws
+ 1034  cd .aws
+ 1035  ls
+ 1036  vi credentials
+ 1037  sudo vi credentials
+ 1038  ls -la
+ 1039  sudo chown jenkins:jenkins credentials
+
+Scripted pipeline properties defnition and AWS ECR login token fetch:
+=====================================
+https://st-g.de/2016/12/parametrized-jenkins-pipelines
+https://stackoverflow.com/questions/50858576/how-do-i-multiple-properties-in-scripted-jenkinsfile
+
+https://dev.to/pencillr/jenkins-pipelines-and-their-dirty-secrets-2
+https://issues.jenkins-ci.org/browse/JENKINS-40574
+https://stackoverflow.com/questions/28572080/how-to-access-parameters-in-a-parameterized-build
+https://stackoverflow.com/questions/40323490/passing-variable-to-bash-script-in-a-jenkins-pipeline-job
+https://e.printstacktrace.blog/jenkins-pipeline-environment-variables-the-definitive-guide/
+https://e.printstacktrace.blog/jenkins-scripted-pipeline-vs-declarative-pipeline-the-4-practical-differences/
+https://stackoverflow.com/questions/34228864/stop-and-delete-docker-container-if-its-running
+https://medium.com/faun/a-hacky-hackers-guide-to-hacking-together-jenkins-scripted-pipelines-part-3-aca73bd33eaa -- ssh
+https://gist.github.com/beercan1989/b66b7643b48434f5bdf7e1c87094acb9
+
+
+
+https://www.youtube.com/watch?v=UPSpLDnuJC0 -- jenkins remote connection to another machine
+https://phoenixnap.com/kb/how-to-ssh-into-docker-container
+Questions:
+1. How UI code would know what are features/requirements needed for building the application for specific reagion or specific client?
+2. How this could be achieved while building the docker image?
+
+
+node {
+   def mvnHome = "hps-innovations/infectious-disease-dev-dev-04132020"
+   
+   stage('Preparation') {
+       env.dff = mvnHome.replaceAll("/", "-")
+        // env.dff=sh(returnStdout: true, script: " echo 'hps-innovations/infectious-disease-dev-dev-04132020' | sed -e 's/\//-/g'")
+        // sh "echo ${dff}"
+        echo "${dff}"
+   }
+}
