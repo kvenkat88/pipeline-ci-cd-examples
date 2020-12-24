@@ -1,0 +1,8 @@
+#Gitlab CICD
+============
+https://medium.com/@NickKaramoff/gitlab-ci-setup-for-an-android-app-3ba57b369b5f
+
+https://about.gitlab.com/blog/2018/10/24/setting-up-gitlab-ci-for-android-projects/
+
+https://github.com/jangrewe/gitlab-ci-android
+
